@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Produto {
+  id     Int     @id @default(autoincrement())
+  nome   String
+  preco  Float
+  estoque Int
+  pedidos PedidoProduto[]
+}
+
+model Pedido {
+  id         Int              @id @default(autoincrement())
+  data       DateTime         @default(now())
+  valorTotal Float
+  clienteId  Int
+  statusId   Int
+  isDeleted  Boolean @default(false)
+  produtos   PedidoProduto[]
+  pagamentos PedidoPagamento[]
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+  status  Status  @relation(fields: [statusId], references: [id])
+}
+
+model PedidoProduto {
+  id         Int     @id @default(autoincrement())
+  pedidoId   Int
+  produtoId  Int
+  quantidade Int
+  valorUnit  Float
+  valorTotal Float
+
+  pedido  Pedido  @relation(fields: [pedidoId], references: [id])
+  produto Produto @relation(fields: [produtoId], references: [id])
+}
+
+
+model Cliente {
+  id Int @id @default(autoincrement())
+  name String
+  email String @unique
+  isDeleted Boolean @default(false)
+
+  pedidos Pedido[]
+}
+
+model Status {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  pedidos Pedido[]
+}
+
+model TipoPagamento {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  pedidoPagamentos PedidoPagamento[]
+}
+
+model PedidoPagamento {
+  id             Int  @id @default(autoincrement())
+  pedidoId       Int
+  tipoPagamentoId Int
+  total          Float
+
+  pedido Pedido @relation(fields: [pedidoId], references: [id])
+  tipoPagamento TipoPagamento @relation(fields: [tipoPagamentoId], references: [id])
+}
