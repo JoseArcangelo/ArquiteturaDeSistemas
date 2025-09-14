@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 
 import produtoRoutes from "./routes/produtoRoutes";
 import pedidoRoutes from "./routes/pedidoRoutes";
+import clienteRoutes from "./routes/clienteRoutes";
 
 dotenv.config();
 
@@ -11,12 +12,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Rota de teste
-app.get("/", (req, res) => {
-  res.json({ message: "API rodando com sucesso 🚀" });
-});
 
-// Rotas principais
+app.use("/clientes", clienteRoutes);
 app.use("/produtos", produtoRoutes);
 app.use("/pedidos", pedidoRoutes);
 
