@@ -16,13 +16,17 @@ Sexto semestre - Sistemas de Informação - AMF
 
 ## Estrutura dos Diretórios
 
+<h2>Estrutura dos Diretórios</h2>
+<pre>
 ArquiteturaDeSistemas/
-├── backend/                  # Código do backend em TypeScript
-│   ├── src/                  # Lógica principal: controllers, services, routes
-│   ├── prisma/               # Modelo do banco e migrações
-│   └── package.json          # Dependências e scripts do backend
-├── docker-compose.yml        # Orquestração dos serviços
-└── README.md                 # Documentação do projeto
+├── backend/              # Código do backend em TypeScript
+│   ├── src/              # Lógica principal: controllers, services, routes
+│   ├── prisma/           # Modelo do banco e migrações
+│   └── package.json      # Dependências e scripts do backend
+├── docker-compose.yml    # Orquestração dos serviços
+└── README.md             # Documentação do projeto
+</pre>
+
 
 
 ### Detalhamento do backend
