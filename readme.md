@@ -16,7 +16,7 @@ Sexto semestre - Sistemas de Informação - AMF
 
 ## Estrutura dos Diretórios
 
-<h2>Estrutura dos Diretórios</h2>
+
 <pre>
 ArquiteturaDeSistemas/
 ├── backend/              # Código do backend em TypeScript
