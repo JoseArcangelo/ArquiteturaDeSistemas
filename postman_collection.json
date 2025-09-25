@@ -1,0 +1,45 @@
+{
+  "info": {
+    "name": "Microservices Example",
+    "_postman_id": "example-collection",
+    "description": "Collection to test Users, Products, Orders, Payments microservices",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create client",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{users_url}}/clients", "host": ["{{users_url}}"], "path": ["clients"] },
+        "body": { "mode": "raw", "raw": "{ \"nome\": \"Joao\", \"email\": \"joao@example.com\" }" }
+      }
+    },
+    {
+      "name": "Create product",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{products_url}}/products", "host": ["{{products_url}}"], "path": ["products"] },
+        "body": { "mode": "raw", "raw": "{ \"nome\": \"Caneta\", \"preco\": 2.5, \"estoque\": 100 }" }
+      }
+    },
+    {
+      "name": "Create order",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{orders_url}}/orders", "host": ["{{orders_url}}"], "path": ["orders"] },
+        "body": { "mode": "raw", "raw": "{ \"clienteId\": 1, \"produtos\": [{ \"produtoId\": 1, \"quantidade\": 2 }] }" }
+      }
+    },
+    {
+      "name": "Process payment",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{payments_url}}/payments/process/{{orderId}}", "host": ["{{payments_url}}"], "path": ["payments","process","{{orderId}}"] }
+      }
+    }
+  ]
+}
