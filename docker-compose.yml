@@ -124,6 +124,20 @@ services:
       - products-db
       - payments-db
 
+  # Notification service
+  notification_service:
+    build: ./notification-service
+    container_name: notification_service
+    restart: always
+    ports:
+      - "3008:3005"
+    depends_on:
+      - orders_service
+    volumes:
+      - ./notification-service:/app:cached
+      - /app/node_modules
+    command: sh -c "node src/index.js"
+
 volumes:
   users_db_data:
   products_db_data:
