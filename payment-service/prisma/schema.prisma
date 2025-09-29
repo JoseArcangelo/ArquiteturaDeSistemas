@@ -8,10 +8,11 @@ datasource db {
 }
 
 model Payment {
-  id        Int      @id @default(autoincrement())  // ID do pagamento
-  orderId   String   // ID do pedido (agora como string, compatível com MongoDB)
-  amount    Float    // Valor do pagamento
-  status    String   // Status: 'pending', 'completed', 'canceled'
-  createdAt DateTime @default(now())               // Data de criação
-  updatedAt DateTime @updatedAt                    // Data de atualização automática
+  id        Int      @id @default(autoincrement()) // ID do pagamento
+  orderId   String   // ID do pedido (compatível com MongoDB)
+  amount    Float
+  method    String   @default("pix")              // Valor default do método de pagamento
+  status    String
+  createdAt DateTime @default(now())              
+  updatedAt DateTime @updatedAt                   
 }
