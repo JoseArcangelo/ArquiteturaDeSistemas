@@ -27,7 +27,6 @@ app.get('/orders', async (_req, res) => {
   res.json(orders);
 });
 
-// Obter pedido por ID
 app.get('/orders/:id', async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
@@ -38,7 +37,6 @@ app.get('/orders/:id', async (req, res) => {
   }
 });
 
-// Atualizar status do pedido
 app.patch('/orders/:id/status', async (req, res) => {
   const { status } = req.body;
   if (!['pending', 'completed', 'canceled'].includes(status)) {
