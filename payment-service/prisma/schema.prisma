@@ -11,7 +11,7 @@ model Payment {
   id        Int      @id @default(autoincrement()) // ID do pagamento
   orderId   String   // ID do pedido (compatível com MongoDB)
   amount    Float
-  method    String   @default("pix")              // Valor default do método de pagamento
+  method    String   @default("pix")              
   status    String
   createdAt DateTime @default(now())              
   updatedAt DateTime @updatedAt                   
