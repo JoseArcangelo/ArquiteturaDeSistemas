@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Payment {
+  id        Int      @id @default(autoincrement())  // ID do pagamento
+  orderId   String   // ID do pedido (agora como string, compatível com MongoDB)
+  amount    Float    // Valor do pagamento
+  status    String   // Status: 'pending', 'completed', 'canceled'
+  createdAt DateTime @default(now())               // Data de criação
+  updatedAt DateTime @updatedAt                    // Data de atualização automática
+}
