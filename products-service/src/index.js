@@ -6,7 +6,6 @@ const prisma = new PrismaClient();
 
 app.use(express.json());
 
-// Criar produto
 app.post('/products', async (req, res) => {
   const { name, price, stock } = req.body;
   try {
@@ -17,13 +16,11 @@ app.post('/products', async (req, res) => {
   }
 });
 
-// Listar todos produtos
 app.get('/products', async (_req, res) => {
   const products = await prisma.product.findMany();
   res.json(products);
 });
 
-// Buscar produto por id
 app.get('/products/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -35,7 +32,6 @@ app.get('/products/:id', async (req, res) => {
   }
 });
 
-// Atualizar produto por id
 app.patch('/products/:id', async (req, res) => {
   const { id } = req.params;
   const data = req.body;
@@ -58,7 +54,6 @@ app.delete('/products/:id', async (req, res) => {
   }
 });
 
-// Consultar estoque
 app.get('/products/:id/stock', async (req, res) => {
   const { id } = req.params;
   try {
@@ -70,7 +65,6 @@ app.get('/products/:id/stock', async (req, res) => {
   }
 });
 
-// Atualizar estoque
 app.patch('/products/:id/stock', async (req, res) => {
   const { id } = req.params;
   const { stock } = req.body;
