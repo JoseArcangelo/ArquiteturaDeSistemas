@@ -8,12 +8,10 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-// Conectar MongoDB
 mongoose.connect(process.env.MONGO_URL)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error(err));
 
-// Criar pedido
 app.post('/orders', async (req, res) => {
   const { userId, products, status } = req.body;
   try {
@@ -24,7 +22,6 @@ app.post('/orders', async (req, res) => {
   }
 });
 
-// Obter todos pedidos
 app.get('/orders', async (_req, res) => {
   const orders = await Order.find();
   res.json(orders);
