@@ -4,21 +4,18 @@ const port = process.env.PORT || 3005;
 
 app.use(express.json());
 
-// Health
+
 app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'notification-service' });
 });
 
-// Endpoint to send notification when an order is created
 app.post('/notify', (req, res) => {
   const { userId, orderId, message } = req.body || {};
 
-  // Validar dados necessários
   if (!userId || !orderId) {
     return res.status(400).json({ success: false, error: 'userId and orderId are required' });
   }
 
-  // Simular o envio de uma notificação
   const notification = {
     id: Math.floor(Math.random() * 1000000),
     timestamp: new Date().toISOString(),
