@@ -8,6 +8,7 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+<<<<<<< HEAD
 // Retry logic para conexão MongoDB
 const maxRetries = 10;
 const baseDelay = 1000; // 1s
@@ -35,6 +36,11 @@ async function connectMongoDB(attempt = 1) {
 
 // Conectar ao banco antes de iniciar o servidor
 await connectMongoDB();
+=======
+mongoose.connect(process.env.MONGO_URL)
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error(err));
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
 
 app.post('/orders', async (req, res) => {
   const { userId, products, status } = req.body;

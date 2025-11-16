@@ -2,7 +2,10 @@ import express from 'express';
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
+<<<<<<< HEAD
 import { connectRabbit, sendNotification } from './rabbit.js'; 
+=======
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
 
 dotenv.config();
 
@@ -11,6 +14,7 @@ app.use(express.json());
 
 const prisma = new PrismaClient();
 
+<<<<<<< HEAD
 // Conecta RabbitMQ ao iniciar o serviço e só depois inicia o server
 async function start() {
   await connectRabbit();
@@ -20,6 +24,8 @@ async function start() {
 
 start();
 
+=======
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
 app.post('/payments', async (req, res) => {
   const { orderId, amount, method } = req.body;
 
@@ -33,7 +39,10 @@ app.post('/payments', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
 app.patch('/payments/:id/process', async (req, res) => {
   const { id } = req.params;
 
@@ -45,6 +54,7 @@ app.patch('/payments/:id/process', async (req, res) => {
     const order = orderRes.data;
 
     let canProcess = true;
+<<<<<<< HEAD
     let expectedAmount = 0;
     const productsDetails = [];
 
@@ -62,6 +72,12 @@ app.patch('/payments/:id/process', async (req, res) => {
 
       expectedAmount += (product.price || 0) * item.quantity;
 
+=======
+
+    for (const item of order.products) {
+      const productRes = await axios.get(`http://products_service:3006/products/${item.productId}`);
+      const product = productRes.data;
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
       if (product.stock < item.quantity) {
         canProcess = false;
         break;
@@ -74,6 +90,7 @@ app.patch('/payments/:id/process', async (req, res) => {
       return res.status(400).json({ error: 'Not enough stock, order canceled' });
     }
 
+<<<<<<< HEAD
     // Verifica valor pago
     const paid = Number(payment.amount || 0);
     const diff = Math.abs(paid - expectedAmount);
@@ -91,11 +108,20 @@ app.patch('/payments/:id/process', async (req, res) => {
           stock: detail.stock - detail.quantity
         });
       }
+=======
+    for (const item of order.products) {
+      const productRes = await axios.get(`http://products_service:3006/products/${item.productId}`);
+      const product = productRes.data;
+      await axios.patch(`http://products_service:3006/products/${item.productId}/stock`, {
+        stock: product.stock - item.quantity
+      });
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
     }
 
     await prisma.payment.update({ where: { id: Number(id) }, data: { status: 'completed' } });
     await axios.patch(`http://orders_service:3002/orders/${payment.orderId}/status`, { status: 'completed' });
 
+<<<<<<< HEAD
     // 🟡 >> Aqui enviamos o evento RabbitMQ <<
     sendNotification({
       type: 'ORDER_COMPLETED',
@@ -105,6 +131,8 @@ app.patch('/payments/:id/process', async (req, res) => {
       products: productsDetails
     });
 
+=======
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
     res.json({ message: 'Payment processed successfully' });
 
   } catch (err) {
@@ -112,7 +140,10 @@ app.patch('/payments/:id/process', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
 app.get('/payments', async (req, res) => {
   const { 'order-id': orderId } = req.query;
   try {
@@ -125,5 +156,9 @@ app.get('/payments', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 
 // (server started inside start())
+=======
+app.listen(3007, () => console.log('Payments service running on port 3007'));
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac

@@ -6,8 +6,11 @@
     "start": "node src/index.js"
   },
   "dependencies": {
+<<<<<<< HEAD
     "amqplib": "^0.10.9",
     "axios": "^1.13.2",
+=======
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
     "express": "^4.18.2"
   }
 }

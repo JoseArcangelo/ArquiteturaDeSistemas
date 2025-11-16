@@ -1,7 +1,11 @@
 version: '3.8'
 
 services:
+<<<<<<< HEAD
   # === USERS ===
+=======
+  # Users
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
   users-db:
     image: postgres:15
     container_name: users_db
@@ -25,9 +29,18 @@ services:
       - "3005:3005"
     depends_on:
       - users-db
+<<<<<<< HEAD
     command: sh -c "npx prisma generate && npx prisma migrate deploy || npx prisma db push && node src/index.js"
 
   # === PRODUCTS ===
+=======
+    volumes:
+      - ./user-service:/app:cached
+      - /app/node_modules
+    command: sh -c "npx prisma generate && node src/index.js"
+
+  # Products
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
   products-db:
     image: postgres:15
     container_name: products_db
@@ -51,9 +64,14 @@ services:
       - "3006:3006"
     depends_on:
       - products-db
+<<<<<<< HEAD
     command: sh -c "npx prisma generate && npx prisma db push && node src/index.js"
 
   # === ORDERS ===
+=======
+
+  # Orders
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
   orders-db:
     image: mongo:7
     container_name: orders_db
@@ -62,12 +80,15 @@ services:
       - "27017:27017"
     volumes:
       - orders_db_data:/data/db
+<<<<<<< HEAD
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
       retries: 12
       start_period: 5s
+=======
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
 
   orders_service:
     build: ./orders-service
@@ -78,11 +99,17 @@ services:
     ports:
       - "3002:3002"
     depends_on:
+<<<<<<< HEAD
       orders-db:
         condition: service_healthy
     command: node src/index.js
 
   # === PAYMENTS ===
+=======
+      - orders-db
+
+  # Payments
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
   payments-db:
     image: postgres:15
     container_name: payments_db
@@ -102,11 +129,15 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://admin:admin@payments-db:5432/payments_db?schema=public
+<<<<<<< HEAD
       RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+=======
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
     ports:
       - "3007:3007"
     depends_on:
       - payments-db
+<<<<<<< HEAD
       - rabbitmq
       - orders_service
       - products_service
@@ -144,24 +175,64 @@ services:
       start_period: 5s
 
   # === PGADMIN ===
+=======
+      - products_service
+      - orders_service
+    volumes:
+      - ./payment-service:/app:cached
+      - /app/node_modules
+    command: sh -c "npx prisma generate && node src/index.js"
+
+  # PgAdmin
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin
     restart: always
     environment:
+<<<<<<< HEAD
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
+=======
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com   # login no navegador
+      PGADMIN_DEFAULT_PASSWORD: admin          # senha no navegador
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
     depends_on:
       - users-db
       - products-db
       - payments-db
 
+<<<<<<< HEAD
 # === VOLUMES ===
+=======
+  # Notification service
+  notification_service:
+    build: ./notification-service
+    container_name: notification_service
+    restart: always
+    ports:
+      - "3008:3005"
+    depends_on:
+      - orders_service
+    volumes:
+      - ./notification-service:/app:cached
+      - /app/node_modules
+    command: sh -c "node src/index.js"
+
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
 volumes:
   users_db_data:
   products_db_data:
   orders_db_data:
   payments_db_data:
+<<<<<<< HEAD
   pgadmin_data:
+=======
+  pgadmin_data:
+>>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
