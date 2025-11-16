@@ -1,0 +1,167 @@
+version: '3.8'
+
+services:
+  # === USERS ===
+  users-db:
+    image: postgres:15
+    container_name: users_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: users_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - users_db_data:/var/lib/postgresql/data
+
+  users_service:
+    build: ./user-service
+    container_name: users_service
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://admin:admin@users-db:5432/users_db?schema=public
+    ports:
+      - "3005:3005"
+    depends_on:
+      - users-db
+    command: sh -c "npx prisma generate && npx prisma migrate deploy || npx prisma db push && node src/index.js"
+
+  # === PRODUCTS ===
+  products-db:
+    image: postgres:15
+    container_name: products_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: products_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - products_db_data:/var/lib/postgresql/data
+
+  products_service:
+    build: ./products-service
+    container_name: products_service
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://admin:admin@products-db:5432/products_db?schema=public
+    ports:
+      - "3006:3006"
+    depends_on:
+      - products-db
+    command: sh -c "npx prisma generate && npx prisma db push && node src/index.js"
+
+  # === ORDERS ===
+  orders-db:
+    image: mongo:7
+    container_name: orders_db
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - orders_db_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  orders_service:
+    build: ./orders-service
+    container_name: orders_service
+    restart: always
+    env_file:
+      - ./orders-service/.env
+    ports:
+      - "3002:3002"
+    depends_on:
+      orders-db:
+        condition: service_healthy
+    command: node src/index.js
+
+  # === PAYMENTS ===
+  payments-db:
+    image: postgres:15
+    container_name: payments_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: payments_db
+    ports:
+      - "5437:5432"
+    volumes:
+      - payments_db_data:/var/lib/postgresql/data
+
+  payments_service:
+    build: ./payment-service
+    container_name: payments_service
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://admin:admin@payments-db:5432/payments_db?schema=public
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+    ports:
+      - "3007:3007"
+    depends_on:
+      - payments-db
+      - rabbitmq
+      - orders_service
+      - products_service
+    command: sh -c "npx prisma generate && npx prisma migrate deploy || npx prisma db push && node src/index.js"
+
+  # === NOTIFICATION ===
+  notification_service:
+    build: ./notification-service
+    container_name: notification_service
+    restart: always
+    environment:
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+    ports:
+      - "3008:3008"
+    depends_on:
+      - rabbitmq
+    command: node src/index.js
+
+  # === RABBITMQ ===
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  # === PGADMIN ===
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - users-db
+      - products-db
+      - payments-db
+
+# === VOLUMES ===
+volumes:
+  users_db_data:
+  products_db_data:
+  orders_db_data:
+  payments_db_data:
+  pgadmin_data:
