@@ -2,7 +2,6 @@ FROM node:20
 
 WORKDIR /app
 
-<<<<<<< HEAD
 # Copia apenas o package.json e package-lock
 COPY package*.json ./
 
@@ -20,7 +19,7 @@ EXPOSE 3007
 
 # Comando de inicialização
 CMD ["node", "src/index.js"]
-=======
+
 COPY package*.json ./
 RUN npm install
 
@@ -28,4 +27,3 @@ COPY . .
 
 EXPOSE 3003
 CMD sh -c "npx prisma generate && node src/index.js"
->>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac

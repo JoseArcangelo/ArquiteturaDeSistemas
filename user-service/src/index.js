@@ -17,7 +17,6 @@ app.get('/users', async (_req, res) => {
   res.json(users)
 })
 
-<<<<<<< HEAD
 app.get('/users/:id', async (req, res) => {
   const { id } = req.params
   try {
@@ -29,6 +28,5 @@ app.get('/users/:id', async (req, res) => {
   }
 })
 
-=======
->>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
+
 app.listen(3005, () => console.log('Users service running on port 3005'))
