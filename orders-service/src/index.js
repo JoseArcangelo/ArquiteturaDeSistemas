@@ -1,6 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import { Order } from './models/Order.js';
+import { initKafka, disconnectKafka, producer, consumer } from './kafka.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -8,10 +9,8 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-<<<<<<< HEAD
-// Retry logic para conexão MongoDB
 const maxRetries = 10;
-const baseDelay = 1000; // 1s
+const baseDelay = 1000; 
 
 async function connectMongoDB(attempt = 1) {
   try {
@@ -34,27 +33,91 @@ async function connectMongoDB(attempt = 1) {
   }
 }
 
-// Conectar ao banco antes de iniciar o servidor
+// Conectar MongoDB e Kafka
 await connectMongoDB();
-=======
-mongoose.connect(process.env.MONGO_URL)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error(err));
->>>>>>> b42d51ac57dd4e001d1535ce2e380eeb79442aac
+await initKafka();
+
+// Consumir mensagens de pagamento do Kafka
+async function consumePaymentMessages() {
+  await consumer.subscribe({ topic: 'payments', fromBeginning: false });
+  await consumer.run({
+    eachMessage: async ({ topic, partition, message }) => {
+      try {
+        const payment = JSON.parse(message.value.toString());
+        console.log(' Pagamento recebido:', payment);
+
+        // Atualizar status do pedido baseado na resposta do pagamento
+        const order = await Order.findByIdAndUpdate(
+          payment.orderId,
+          { status: payment.status === 'completed' ? 'completed' : 'canceled' },
+          { new: true }
+        );
+        console.log(' Pedido atualizado:', order);
+      } catch (err) {
+        console.error(' Erro ao processar pagamento:', err.message);
+      }
+    },
+  });
+}
+
+// Iniciar consumidor
+consumePaymentMessages().catch(console.error);
 
 app.post('/orders', async (req, res) => {
-  const { userId, products, status } = req.body;
+  const { userId, products, paymentMethod } = req.body;
+  
   try {
-    const order = await Order.create({ userId, products, status });
+    // Validar que products tem valor
+    if (!products || products.length === 0) {
+      return res.status(400).json({ error: 'Products array cannot be empty' });
+    }
+
+    // Calcular totalValue
+    const totalValue = products.reduce((sum, p) => sum + ((p.price || 0) * (p.quantity || 1)), 0);
+
+    // Criar pedido com status pending
+    const order = await Order.create({ 
+      userId, 
+      products, 
+      status: 'pending',
+      totalValue,
+      paymentMethod
+    });
+
+    // Enviar evento ao Kafka
+    await producer.send({
+      topic: 'pedidos',
+      messages: [
+        {
+          key: order._id.toString(),
+          value: JSON.stringify({
+            orderId: order._id,
+            userId,
+            products,
+            totalValue,
+            paymentMethod,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+          }),
+        },
+      ],
+    });
+
+    console.log('📤 Evento enviado ao Kafka:', order._id);
     res.json(order);
   } catch (err) {
+    console.error('❌ Erro ao criar pedido:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get('/orders', async (_req, res) => {
-  const orders = await Order.find();
-  res.json(orders);
+  try {
+    const orders = await Order.find();
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/orders/:id', async (req, res) => {
@@ -85,4 +148,15 @@ app.patch('/orders/:id/status', async (req, res) => {
   }
 });
 
-app.listen(3002, () => console.log('Orders service running on port 3002'));
+// Health check
+app.get('/', (req, res) => res.json({ status: 'ok', service: 'orders-service' }));
+
+const PORT = 3002;
+app.listen(PORT, () => console.log(`Orders service running on port ${PORT}`));
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  await disconnectKafka();
+  process.exit(0);
+});

@@ -1,9 +1,8 @@
-const express = require('express');
-const connectRabbit = require('./rabbit');
-
+import express from 'express';
+import { connectRabbit } from './rabbit.js';
 
 const app = express();
-const port = process.env.PORT || 3005;
+const port = process.env.PORT || 3008;
 
 app.use(express.json());
 
@@ -26,8 +25,4 @@ app.post('/notify', (req, res) => {
 app.listen(port, () => {
   console.log(`notification-service listening on port ${port}`);
   connectRabbit();
-});
-
-app.listen(port, () => {
-  console.log(`notification-service listening on port ${port}`);
 });

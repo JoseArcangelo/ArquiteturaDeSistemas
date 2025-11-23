@@ -1,5 +1,5 @@
-const amqp = require("amqplib");
-const axios = require("axios");
+import amqp from "amqplib";
+import axios from "axios";
 
 let channel;
 
@@ -14,7 +14,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-module.exports = async function connectRabbit(options = {}) {
+export async function connectRabbit(options = {}) {
   const rabbitUrl = process.env.RABBITMQ_URL || "amqp://rabbitmq:5672";
   const maxRetries = options.maxRetries || 10;
   const baseDelay = options.baseDelay || 1000; // 1s
@@ -66,4 +66,4 @@ module.exports = async function connectRabbit(options = {}) {
       throw err;
     }
   }
-};
+}

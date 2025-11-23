@@ -2,6 +2,7 @@ import express from 'express';
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
+import { initKafka, disconnectKafka, producer, consumer } from './kafka.js';
 import { connectRabbit, sendNotification } from './rabbit.js';
 
 dotenv.config();
@@ -11,14 +12,141 @@ app.use(express.json());
 
 const prisma = new PrismaClient();
 
-// Conecta RabbitMQ ao iniciar o serviço e só depois inicia o server
-async function start() {
-  await connectRabbit();
+// Função para processar pedidos do Kafka
+async function processOrderFromKafka(orderEvent) {
+  try {
+    const { orderId, userId, products, totalValue, paymentMethod } = orderEvent;
 
-  app.listen(3007, () => console.log('Payments service running on port 3007'));
+    console.log('Processando pedido do Kafka:', orderId, 'método:', paymentMethod, 'valor:', totalValue);
+
+    // Valida estoque e valores atuais consultando products_service
+    let canProcess = true;
+    let expectedAmount = 0;
+    const productsDetails = [];
+
+    for (const item of products) {
+      try {
+        const productRes = await axios.get(`http://products_service:3006/products/${item.productId}`);
+        const product = productRes.data;
+        productsDetails.push({ productId: item.productId, name: product.name, price: product.price, stock: product.stock, quantity: item.quantity });
+        expectedAmount += (product.price || 0) * item.quantity;
+        if (product.stock < item.quantity) {
+          canProcess = false;
+          break;
+        }
+      } catch (err) {
+        console.error('Erro consultando produto:', item.productId, err.message);
+        canProcess = false;
+        break;
+      }
+    }
+
+    // Verifica valor esperado vs enviado
+    const diff = Math.abs(expectedAmount - (Number(totalValue) || 0));
+    if (diff > 0.01) {
+      canProcess = false;
+      console.warn(`Valor mismatch para order ${orderId}: esperado=${expectedAmount} enviado=${totalValue}`);
+    }
+
+    // Decide resultado
+    const success = canProcess && Math.random() > 0.2; // mantém chance de falha aleatória
+
+    // Cria registro de pagamento no banco
+    const paymentRecord = await prisma.payment.create({
+      data: {
+        orderId: String(orderId),
+        amount: Number(totalValue) || expectedAmount,
+        method: paymentMethod || 'unknown',
+        status: success ? 'completed' : 'failed',
+      }
+    });
+
+    // Se sucesso, atualiza estoque e notifica orders_service
+    if (success) {
+      for (const pd of productsDetails) {
+        try {
+          await axios.patch(`http://products_service:3006/products/${pd.productId}/stock`, { stock: pd.stock - pd.quantity });
+        } catch (err) {
+          console.error('Erro ao atualizar estoque:', pd.productId, err.message);
+        }
+      }
+
+      await axios.patch(`http://orders_service:3002/orders/${orderId}/status`, { status: 'completed' });
+      console.log(`✅ Pagamento concluído para order ${orderId}, payment id ${paymentRecord.id}`);
+
+      // Envia evento de pagamento para tópico payments para quem precisar
+      await producer.send({
+        topic: 'payments',
+        messages: [{ key: String(orderId), value: JSON.stringify({ orderId, paymentId: paymentRecord.id, status: 'completed', processedAt: new Date().toISOString() }) }]
+      });
+
+      // Envia notificação via RabbitMQ
+      sendNotification({
+        type: 'ORDER_COMPLETED',
+        userId,
+        orderId,
+        message: 'Pagamento confirmado e pedido concluído',
+        products: productsDetails
+      });
+    } else {
+      await axios.patch(`http://orders_service:3002/orders/${orderId}/status`, { status: 'canceled' });
+      console.log(`❌ Pagamento falhou para order ${orderId}, payment id ${paymentRecord.id}`);
+
+      await producer.send({
+        topic: 'payments',
+        messages: [{ key: String(orderId), value: JSON.stringify({ orderId, paymentId: paymentRecord.id, status: 'failed', processedAt: new Date().toISOString() }) }]
+      });
+
+      sendNotification({
+        type: 'ORDER_FAILED',
+        userId,
+        orderId,
+        message: 'Pagamento falhou e pedido foi cancelado',
+        products: productsDetails
+      });
+    }
+  } catch (err) {
+    console.error('Erro ao processar pagamento:', err);
+  }
+}
+
+// Função para consumir eventos de pedidos do Kafka
+async function consumeOrderEvents() {
+  await consumer.run({
+    eachMessage: async ({ topic, partition, message }) => {
+      try {
+        const orderEvent = JSON.parse(message.value.toString());
+        console.log(`Pedido recebido (${topic}):`, orderEvent);
+        await processOrderFromKafka(orderEvent);
+      } catch (err) {
+        console.error('Erro ao processar mensagem Kafka:', err);
+      }
+    }
+  });
+}
+
+// Conecta Kafka e RabbitMQ ao iniciar o serviço e só depois inicia o server
+async function start() {
+  try {
+    await initKafka();
+    await connectRabbit();
+    consumeOrderEvents(); // Inicia consumo de eventos (não aguarda)
+
+    app.listen(3007, () => console.log('Payment service running on port 3007'));
+  } catch (err) {
+    console.error('❌ Erro ao iniciar payment service:', err);
+    process.exit(1);
+  }
 }
 
 start();
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('Encerrando payment-service...');
+  await disconnectKafka();
+  process.exit(0);
+});
 
 
 app.post('/payments', async (req, res) => {
