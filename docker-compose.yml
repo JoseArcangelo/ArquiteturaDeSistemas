@@ -178,6 +178,43 @@ services:
       DYNAMIC_CONFIG_ENABLED: 'true'
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
 
+  redis-cache:
+    image: redis:7-alpine
+    container_name: redis_cache
+    restart: always
+    ports:
+      - "6378:6379"
+    volumes:
+      - redis_data:/data
+  
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis_commander_lab
+    ports:
+      - "8082:8081"
+    environment:
+      - REDIS_HOSTS=local:redis-cache:6379
+    depends_on:
+      - redis-cache
+
+  # === API GATEWAY ===
+  api-gateway:
+    build: ./api-gateway
+    container_name: api_gateway
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      REDIS_HOST: redis-cache
+      REDIS_PORT: 6379
+    depends_on:
+      - redis-cache
+      - users_service
+      - products_service
+      - orders_service
+      - payments_service
+    command: node src/index.js
+
 # === VOLUMES ===
 volumes:
   users_db_data:
@@ -185,4 +222,5 @@ volumes:
   orders_db_data:
   payments_db_data:
   pgadmin_data:
+  redis_data:
 
