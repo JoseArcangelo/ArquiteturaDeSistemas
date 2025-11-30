@@ -6,8 +6,8 @@ WORKDIR /app
 # Copia apenas package.json e package-lock para aproveitar cache
 COPY package*.json ./
 
-# Instala dependências
-RUN npm ci --only=production || npm install
+# Instala dependências (inclui devDependencies para garantir Prisma CLI)
+RUN npm install
 
 # Copia o restante do código (src, prisma, etc)
 COPY . .

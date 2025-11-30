@@ -1,0 +1,38 @@
+_format_version: "2.1"
+
+services:
+  - name: users-service
+    url: http://users_service:3005
+    routes:
+      - name: users-route
+        paths:
+          - /users
+  - name: products-service
+    url: http://products_service:3006
+    routes:
+      - name: products-route
+        paths:
+          - /products
+  - name: orders-service
+    url: http://orders_service:3002
+    routes:
+      - name: orders-route
+        paths:
+          - /orders
+  - name: payments-service
+    url: http://payments_service:3007
+    routes:
+      - name: payments-route
+        paths:
+          - /payments
+
+# Global plugins (apply to all services) to enforce rate limiting and request size limit
+plugins:
+  - name: rate-limiting
+    config:
+      minute: 10
+      policy: local
+      limit_by: ip
+  - name: request-size-limiting
+    config:
+      allowed_payload_size: 204800 # bytes (200 KB)

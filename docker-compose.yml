@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # === USERS ===
   users-db:
@@ -21,11 +19,9 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://admin:admin@users-db:5432/users_db?schema=public
-    ports:
-      - "3005:3005"
     depends_on:
       - users-db
-    command: sh -c "npx prisma generate && node src/index.js"
+    command: sh -c "while true; do if [ -d prisma/migrations ] && [ \"$(ls -A prisma/migrations)\" ]; then npx prisma migrate deploy && break; else npx prisma db push --accept-data-loss && break; fi; echo 'Waiting for DB...'; sleep 1; done; npx prisma generate && node src/index.js"
   # === PRODUCTS ===
   products-db:
     image: postgres:15
@@ -46,11 +42,9 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://admin:admin@products-db:5432/products_db?schema=public
-    ports:
-      - "3006:3006"
     depends_on:
       - products-db
-    command: sh -c "npx prisma generate && node src/index.js"
+    command: sh -c "while true; do if [ -d prisma/migrations ] && [ \"$(ls -A prisma/migrations)\" ]; then npx prisma migrate deploy && break; else npx prisma db push --accept-data-loss && break; fi; echo 'Waiting for DB...'; sleep 1; done; npx prisma generate && node src/index.js"
 
   # === ORDERS ===
   orders-db:
@@ -69,10 +63,13 @@ services:
     restart: always
     env_file:
       - ./orders-service/.env
-    ports:
-      - "3002:3002"
+    environment:
+      KAFKA_BROKERS: kafka:9092
     depends_on:
-      - orders-db
+      orders-db:
+        condition: service_started
+      kafka:
+        condition: service_healthy
     command: node src/index.js
 
   # === PAYMENTS ===
@@ -96,14 +93,19 @@ services:
     environment:
       DATABASE_URL: postgresql://admin:admin@payments-db:5432/payments_db?schema=public
       RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
-    ports:
-      - "3007:3007"
+      KAFKA_BROKERS: kafka:9092
     depends_on:
-      - payments-db
-      - rabbitmq
-      - orders_service
-      - products_service
-    command: sh -c "npx prisma generate && node src/index.js"
+      payments-db:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      orders_service:
+        condition: service_started
+      products_service:
+        condition: service_started
+    command: sh -c "while true; do if [ -d prisma/migrations ] && [ \"$(ls -A prisma/migrations)\" ]; then npx prisma migrate deploy && break; else npx prisma db push --accept-data-loss && break; fi; echo 'Waiting for DB...'; sleep 1; done; npx prisma generate && node src/index.js"
 
   # === NOTIFICATION ===
   notification_service:
@@ -112,8 +114,6 @@ services:
     restart: always
     environment:
       RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
-    ports:
-      - "3008:3008"
     depends_on:
       - rabbitmq
     command: node src/index.js
@@ -166,6 +166,11 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -180,6 +185,116 @@ services:
       DYNAMIC_CONFIG_ENABLED: 'true'
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
 
+  redis-cache:
+    image: redis:7-alpine
+    container_name: redis_cache
+    restart: always
+    ports:
+      - "6378:6379"
+    volumes:
+      - redis_data:/data
+  
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis_commander_lab
+    ports:
+      - "8082:8081"
+    environment:
+      - REDIS_HOSTS=local:redis-cache:6379
+    depends_on:
+      - redis-cache
+
+  # === API GATEWAY ===
+  api-gateway:
+    build: ./api-gateway
+    container_name: api_gateway
+    restart: always
+    environment:
+      REDIS_HOST: redis-cache
+      REDIS_PORT: 6379
+    depends_on:
+      - redis-cache
+      - users_service
+      - products_service
+      - orders_service
+      - payments_service
+    command: node src/index.js
+
+  # === KONG (API Gateway) ===
+  kong-db:
+    image: postgres:15
+    container_name: kong_db
+    restart: always
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kong_password
+      POSTGRES_DB: kong
+    volumes:
+      - kong_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
+
+  kong-migration:
+    image: kong:3.4
+    container_name: kong_migration
+    restart: on-failure
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong_password
+    command: "kong migrations bootstrap"
+    depends_on:
+      - kong-db
+
+  kong-gateway:
+    image: kong:3.4
+    container_name: kong_gateway
+    restart: always
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong_password
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+      - "8001:8001"
+      - "8444:8444"
+    depends_on:
+      - kong-migration
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  konga:
+    image: pantsel/konga
+    container_name: konga_ui
+    restart: always
+    environment:
+      NODE_ENV: development
+      KONGA_KONG_ADMIN_URL: http://kong-gateway:8001
+    ports:
+      - "1337:1337"
+    depends_on:
+      - kong-gateway
+
+  kong-bootstrap:
+    image: curlimages/curl:8.4.0
+    container_name: kong_bootstrap
+    depends_on:
+      - kong-gateway
+    volumes:
+      - ./kong/bootstrap.sh:/bootstrap.sh:ro
+    entrypoint: ["/bin/sh", "/bootstrap.sh"]
+
 # === VOLUMES ===
 volumes:
   users_db_data:
@@ -187,4 +302,6 @@ volumes:
   orders_db_data:
   payments_db_data:
   pgadmin_data:
+  redis_data:
+  kong_postgres_data:
 
